@@ -12,29 +12,36 @@ library(lubridate)
 library(ggplot2)
 library(ggmap)
 library(maps)
-library(raster)
+#library(raster)
 
 setwd("C:/Users/User/Desktop/Meteo")#устанавливаем рабочую директорию
 
 #читаем имена колонок
-columns <- scan('idx.txt',
+columns <- scan('colnames.txt',
                 what = character(),
                 encoding = 'UTF-8')
 
+# for(i in 1:length(columns)){
+#  columns[i] = substr(columns[i], 1, nchar(columns[i])-1)
+# }
+
+columns <- gsub('[_]$', '', columns)
+
+
 #читаем инфо о метеостанции
-stations <- readr::read_delim('spisok.csv',
+stations <- readr::read_delim('meteo_stations.csv',
                        delim = ';',
-                       col_names = c(columns[1], 'Локация_', 'Широта_', 'СЮ', 'Долгота_', 'ЗВ', 'Подъем_'),
+                       col_names = c(columns[1], 'Локация', 'Широта', 'СЮ', 'Долгота', 'ЗВ', 'Подъем'),
                        trim_ws = T) %>%
             #форматируем координаты
-            mutate(Широта_ = case_when(СЮ == 'ю.ш.' ~ -Широта_, TRUE ~ Широта_)) %>%
-            mutate(Долгота_ = case_when(ЗВ == 'з.д.' ~ -Долгота_, TRUE ~ Долгота_)) %>%
+            mutate(Широта = case_when(СЮ == 'ю.ш.' ~ -Широта, TRUE ~ Широта)) %>%
+            mutate(Долгота = case_when(ЗВ == 'з.д.' ~ -Долгота, TRUE ~ Долгота)) %>%
             dplyr::select(-СЮ, -ЗВ)
 
 target_data <- list()
 
 #читаем список файлов
-files <- list.files(path="data/", pattern="*.txt", full.names=T, recursive=FALSE)
+files <- list.files(path="test/", pattern="*.txt", full.names=T, recursive=FALSE)
 
 #подготавливаем файлы данных
 for (i in 1:length(files)) {
@@ -83,7 +90,7 @@ for (i in 1:length(files)) {
   
 }
 
-x#создаем финальную таблицу
+#создаем финальную таблицу
 final_data_set <- bind_rows(target_data)
 #подсчитываем количество упоминаний станции в таблице
 counts <- count(final_data_set, Локация_)
