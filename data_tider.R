@@ -8,11 +8,12 @@
 library(dplyr)
 library(tidyr)
 library(readr)
+library(data.table)
 library(lubridate)
 library(ggplot2)
 library(ggmap)
 library(maps)
-#library(raster)
+library(raster)
 
 setwd("C:/Users/User/Desktop/Meteo")#устанавливаем рабочую директорию
 
@@ -41,71 +42,82 @@ stations <- readr::read_delim('meteo_stations.csv',
 target_data <- list()
 
 #читаем список файлов
-files <- list.files(path="test/", pattern="*.txt", full.names=T, recursive=FALSE)
+files <- list.files(path="data/", pattern="*.txt", full.names=T, recursive=FALSE)
 
 #подготавливаем файлы данных
 for (i in 1:length(files)) {
   #читаем данные с метеостанции
-  data_set <- read_delim(files[i],
-                         delim = ';',
-                         col_types = cols(.default = "c"),
-                         col_names = columns,
-                         trim_ws = T) %>%
-    #Выбираем нужные столбцы и форматируем типы данных
-    dplyr::select(c('Синоптический_индекс_станции_',
-             'Год___по_Гринвичу_',
-             'Месяц_по_Гринвичу_',
-             'День__по_Гринвичу_',
-             'Срок__по_Гринвичу_',
-             'Сумма_осадков_',
-             'Макс._темперура_воздуха_между_сроками_')) %>%
-    mutate(Синоптический_индекс_станции_ = as.integer(Синоптический_индекс_станции_),
-            Год___по_Гринвичу_ = as.integer(Год___по_Гринвичу_),
-            Месяц_по_Гринвичу_ = as.integer(Месяц_по_Гринвичу_),
-            День__по_Гринвичу_ = as.integer(День__по_Гринвичу_),
-            Срок__по_Гринвичу_ = as.integer(Срок__по_Гринвичу_),
-            Сумма_осадков_ = as.numeric(Сумма_осадков_),
-            Макс._темперура_воздуха_между_сроками_ = as.numeric(Макс._темперура_воздуха_между_сроками_)) %>%
+  data_set <- fread(files[i], header = F,
+                    stringsAsFactors = F,
+                    nrows = -1,
+                    select = c(1:5, 48, 69),
+                    col.names = columns[c(1:5, 48, 69)],
+                    blank.lines.skip = T,
+                    fill = T,
+                    strip.white = T,
+                    na.strings = c("NA", "N/A", "null" ),
+                    colClasses = list(character=1:90)) %>%
+    #           read_delim(files[i],
+    #                      delim = ';',
+    #                      col_types = cols(.default = "c"),
+    #                      col_names = columns,
+    #                      trim_ws = T) %>%
+    # #Выбираем нужные столбцы и форматируем типы данных
+    # dplyr::select(c('Синоптический_индекс_станции',
+    #          'Год___по_Гринвичу',
+    #          'Месяц_по_Гринвичу',
+    #          'День__по_Гринвичу',
+    #          'Срок__по_Гринвичу',
+    #          'Сумма_осадков',
+    #          'Макс._темперура_воздуха_между_сроками')) %>%
+    mutate(Синоптический_индекс_станции = as.integer(Синоптический_индекс_станции),
+            Год___по_Гринвичу = as.integer(Год___по_Гринвичу),
+            Месяц_по_Гринвичу = as.integer(Месяц_по_Гринвичу),
+            День__по_Гринвичу = as.integer(День__по_Гринвичу),
+            Срок__по_Гринвичу = as.integer(Срок__по_Гринвичу),
+            Сумма_осадков = as.numeric(Сумма_осадков),
+            Макс._темперура_воздуха_между_сроками = as.numeric(Макс._темперура_воздуха_между_сроками)) %>%
     #убираем строки с NA
     na.omit() %>%
-    #группируем по индексу станции
-    group_by(Синоптический_индекс_станции_)%>%
     #форматируем время
-    unite(Дата_по_Гринвичу_, Год___по_Гринвичу_, Месяц_по_Гринвичу_, День__по_Гринвичу_, Срок__по_Гринвичу_)%>%
-    mutate(Дата_по_Гринвичу_ = ymd_h(Дата_по_Гринвичу_)) %>%
-    #добавляем стобец временных периодов
-    mutate(Начало_периода_ = cut(Дата_по_Гринвичу_, breaks = "12 hours")) %>%
-    group_by(Синоптический_индекс_станции_, Начало_периода_) %>%
+    unite(Дата_по_Гринвичу, Год___по_Гринвичу, Месяц_по_Гринвичу, День__по_Гринвичу, Срок__по_Гринвичу, sep = "_")%>%
+    mutate(Дата_по_Гринвичу = ymd_h(Дата_по_Гринвичу)) %>%
+    #группируем по индексу станции
+    group_by(Синоптический_индекс_станции)%>%
+    # #добавляем стобец временных периодов
+    # mutate(Начало_периода = cut.Date(Дата_по_Гринвичу, breaks = "12 hours")) %>%
+    # group_by(Синоптический_индекс_станции, Начало_периода) %>%
     #подсчитываем осадки и среднюю температуру за период
-    summarize(Сумма_осадков_ = sum(Сумма_осадков_), Средняя_температура_ = mean(as.numeric(Макс._темперура_воздуха_между_сроками_))) %>% 
+    summarize(Сумма_осадков = sum(Сумма_осадков), Средняя_температура = mean(as.numeric(Макс._темперура_воздуха_между_сроками))) %>%
     #отбрасываем неподходящие строки
-    filter(Средняя_температура_ < 0 & Сумма_осадков_ >= 30) %>%
-    #добавляем информацию о станции
-    inner_join(stations, by = 'Синоптический_индекс_станции_') %>%
+    filter(Средняя_температура < 0 & Сумма_осадков >= 30) %>%
+    # #добавляем информацию о станции
+    inner_join(stations, by = 'Синоптический_индекс_станции') %>%
     #формируем финальную таблицу
-    dplyr::select(Синоптический_индекс_станции_, Локация_, Широта_, Долгота_, Подъем_, Начало_периода_, Сумма_осадков_, Средняя_температура_)
-  
+    #dplyr::select(Синоптический_индекс_станции, Локация, Широта, Долгота, Подъем, Начало_периода, Сумма_осадков, Средняя_температура)
+    dplyr::select(Синоптический_индекс_станции, Локация, Широта, Долгота, Подъем, Сумма_осадков, Средняя_температура)
   #добавляем таблицу в итоговый список
   target_data[[i]] <- data_set
+  print(i)
   
 }
 
 #создаем финальную таблицу
 final_data_set <- bind_rows(target_data)
 #подсчитываем количество упоминаний станции в таблице
-counts <- count(final_data_set, Локация_)
+counts <- count(final_data_set, Локация)
 #добавляем число упоминаний отдельным столбцом и сортируем по возрастанию осадков
-final_data_set <- inner_join(final_data_set, counts[, c(2,3)], by ="Локация_") %>%
+final_data_set <- inner_join(final_data_set, counts[, c(2,3)], by ="Локация") %>%
   #ungroup() %>%
-  #mutate(colorscalerate = (Сумма_осадков_-min(Сумма_осадков_))/(max(Сумма_осадков_)-min(Сумма_осадков_))) %>%
-  #group_by(Синоптический_индекс_станции_, Начало_периода_) %>%
-  arrange(Сумма_осадков_)
+  #mutate(colorscalerate = (Сумма_осадков-min(Сумма_осадков))/(max(Сумма_осадков)-min(Сумма_осадков))) %>%
+  #group_by(Синоптический_индекс_станции, Начало_периода) %>%
+  arrange(Сумма_осадков)
 
 #строим график температура/осадки
 final_data_set %>%
-  ggplot(aes(x = Средняя_температура_, y = Сумма_осадков_)) +
+  ggplot(aes(x = Средняя_температура, y = Сумма_осадков)) +
   geom_point() #+
-  #facet_grid(Синоптический_индекс_станции_ ~ Начало_периода_)
+  #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("Осадки-температура.png")
 
 #загружаем карту России
@@ -113,12 +125,12 @@ russia <- getData("GADM", country= "RUS", level=1)
 russia <- fortify(russia)
 #делаем смещение для корректного отображения карты
 russia = within(russia, {long = ifelse(long < 0, long + 360, long)})
-final_data_set = within(final_data_set, {Долгота_ = ifelse(Долгота_ < 0, Долгота_ + 360, Долгота_)})
+final_data_set = within(final_data_set, {Долгота = ifelse(Долгота < 0, Долгота + 360, Долгота)})
 
 #строим карту с расположением метеостанций
 locations_plot <- ggplot() +
   geom_map(data= russia, map= russia, aes(x=long,y=lat, map_id=id,group=group), fill="white", colour="black") +
-  geom_point(data = final_data_set, aes(x = Долгота_, y = Широта_, color = Локация_), size = 2) +
+  geom_point(data = final_data_set, aes(x = Долгота, y = Широта, color = Локация), size = 2) +
   scale_size(range=c(2,7)) +
   labs(title= "Расположение метеостанций", x="Longitude", y= "Latitude") +
   coord_map()
@@ -130,7 +142,7 @@ locations_plot
 #строим карту с отображением частоты осадков
 precipitation_freq_plot <- ggplot() +
   geom_map(data= russia, map= russia, aes(x=long,y=lat, map_id=id,group=group), fill="white", colour="black") +
-  geom_point(data = final_data_set, aes(x = Долгота_, y = Широта_, color = Локация_, size = n)) +
+  geom_point(data = final_data_set, aes(x = Долгота, y = Широта, color = Локация, size = n)) +
   scale_size(range=c(2,7)) +
   labs(title= "Частота осадков", x="Longitude", y= "Latitude") +
   coord_map()
@@ -142,7 +154,7 @@ precipitation_freq_plot
 #строим карту с отображением уровня осадков
 precipitation_vol_plot <- ggplot() +
   geom_map(data = russia, map = russia, aes(x = long, y = lat, map_id=id,group=group), fill="white", colour="black") +
-  geom_point(data = final_data_set, aes(x = Долгота_, y = Широта_, color = Сумма_осадков_), size = 3) +
+  geom_point(data = final_data_set, aes(x = Долгота, y = Широта, color = Сумма_осадков), size = 3) +
   scale_colour_gradient(low = "#add8e6", high = "#0000FF") +
   scale_size(range=c(2,7)) +
   labs(title= "Объём осадков", x="Longitude", y= "Latitude") +
