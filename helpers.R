@@ -120,6 +120,18 @@ final_data <- data.frame()
 #   }
 # }
 
+j=0
+
+while(j <= 5){
+  if(j == 3){
+    j <- j+2
+    next
+  }
+  print(j)
+  j <- j+1
+}
+
+
 
 
 for(i in 1:nrow(data_set)){

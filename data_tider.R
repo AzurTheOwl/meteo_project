@@ -15,8 +15,17 @@ library(ggmap)
 library(maps)
 library(raster)
 
+addRow <- function(data_set, final_set, iter, iter_range){
+  new_row <- data.frame(data_set[iter,]$Синоптический_индекс_станции,
+                        data_set[iter,]$Дата_по_Гринвичу,
+                        sum(data_set[iter:(iter + iter_range),]$Сумма_осадков),
+                        mean(data_set[iter:(iter + iter_range),]$Макс._темперура_воздуха_между_сроками))
+  names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Средняя_температура")
+  rbind(final_set, new_row)
+}
+
 findCondition <- function(data_set){
-  
+
   output_data <- data.frame()
   i = 1
   
@@ -34,87 +43,83 @@ findCondition <- function(data_set){
         next
       }else{
         #save to out
-        new_row <- data.frame(data_set[i,]$Синоптический_индекс_станции,
-                              data_set[i,]$Дата_по_Гринвичу,
-                              data_set[i,]$Сумма_осадков,
-                              data_set[i,]$Макс._темперура_воздуха_между_сроками)
-        names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Макс._темперура_воздуха_между_сроками")
-        output_data <- rbind(output_data, new_row)
+        output_data <- addRow(data_set, output_data, i, 0)
+
         i=i+1
         next
       }
     }else{
       timediff <- difftime(data_set[i+2, "Дата_по_Гринвичу"], data_set[i, "Дата_по_Гринвичу"], units = "hours")
       if(timediff > 7 | is.na(timediff)){
-        if((data_set[i, "Сумма_осадков"] + data_set[i+1, "Сумма_осадков"]) < 20){
+        if(sum(data_set[i:(i+1), "Сумма_осадков"]) < 20){
           i=i+1
           next
         }else{
           if(data_set[i+1, "Макс._темперура_воздуха_между_сроками"] >= 0){
-            i=i+1
+            if(data_set[i, "Сумма_осадков"] >= 20){
+              output_data <- addRow(data_set, output_data, i, 0)
+            }
+            i= i + 2
             next
           }
-          #save to out with date of last measurement
-          new_row <- data.frame(data_set[i,]$Синоптический_индекс_станции,
-                                data_set[i,]$Дата_по_Гринвичу,
-                                sum(data_set[i:(i+1),]$Сумма_осадков),
-                                mean(data_set[i:(i+1),]$Макс._темперура_воздуха_между_сроками))
-          names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Макс._темперура_воздуха_между_сроками")
-          output_data <- rbind(output_data, new_row)
-          i = i + 1
-          #next
+          output_data <- addRow(data_set, output_data, i, 1)
+          i = i + 2
+          next
         } 
       }else{
         timediff <- difftime(data_set[i+3, "Дата_по_Гринвичу"], data_set[i, "Дата_по_Гринвичу"], units = "hours")
         if(timediff > 10 | is.na(timediff)){
-          if((data_set[i, "Сумма_осадков"] + data_set[i+1, "Сумма_осадков"] + data_set[i+2, "Сумма_осадков"]) < 20){
+          if(sum(data_set[i:(i+2), "Сумма_осадков"]) < 20){
             i=i+1
             next
           }else{
             if(data_set[i+1, "Макс._темперура_воздуха_между_сроками"] >= 0){
-              i=i+1
+              if(data_set[i, "Сумма_осадков"] >= 20){
+                output_data <- addRow(data_set, output_data, i, 0)
+              }
+              i=i + 2
               next
             }
             if(data_set[i+2, "Макс._темперура_воздуха_между_сроками"] >= 0){
-              i=i+1
+              if(sum(data_set[i:(i+1), "Сумма_осадков"]) >= 20){
+                output_data <- addRow(data_set, output_data, i, 1)
+              }
+              i=i + 3
               next
             }
-            #save to out with date of last measurement
-            new_row <- data.frame(data_set[i,]$Синоптический_индекс_станции,
-                                  data_set[i,]$Дата_по_Гринвичу,
-                                  sum(data_set[i:(i+2),]$Сумма_осадков),
-                                  mean(data_set[i:(i+2),]$Макс._темперура_воздуха_между_сроками))
-            names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Макс._темперура_воздуха_между_сроками")
-            output_data <- rbind(output_data, new_row)
-            i = i + 2
-            #next
+            output_data <- addRow(data_set, output_data, i, 2)
+            i = i + 3
+            next
           } 
         }else{
-          if((data_set[i, "Сумма_осадков"] + data_set[i+1, "Сумма_осадков"] + data_set[i+2, "Сумма_осадков"] + data_set[i+3, "Сумма_осадков"]) < 20){
+          if(sum(data_set[i:(i+3), "Сумма_осадков"]) < 20){
             i=i+1
             next
           }else{
             if(data_set[i+1, "Макс._темперура_воздуха_между_сроками"] >= 0){
-              i=i+1
+              if(data_set[i, "Сумма_осадков"] >= 20){
+                output_data <- addRow(data_set, output_data, i, 0)
+              }
+              i=i + 2
               next
             }
             if(data_set[i+2, "Макс._темперура_воздуха_между_сроками"] >= 0){
-              i=i+1
+              if(sum(data_set[i:(i+1), "Сумма_осадков"]) >= 20){
+                output_data <- addRow(data_set, output_data, i, 1)
+              }
+              i=i + 3
               next
             }
             if(data_set[i+3, "Макс._темперура_воздуха_между_сроками"] >= 0){
-              i=i+1
+              if(sum(data_set[i:(i+2), "Сумма_осадков"]) >= 20){
+                output_data <- addRow(data_set, output_data, i, 2)
+              }
+              i=i + 4
               next
             }
-            #save to out with date of last measurement
-            new_row <- data.frame(data_set[i,]$Синоптический_индекс_станции,
-                                  data_set[i,]$Дата_по_Гринвичу,
-                                  sum(data_set[i:(i+3),]$Сумма_осадков),
-                                  mean(data_set[i:(i+3),]$Макс._темперура_воздуха_между_сроками))
-            names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Макс._темперура_воздуха_между_сроками")
-            output_data <- rbind(output_data, new_row)
-            i = i + 3
-            #next
+            output_data <- addRow(data_set, output_data, i, 3)
+            i = i + 4
+            next
           } 
         }
       }
@@ -154,9 +159,9 @@ final_data <- data.frame()
 files <- list.files(path="data/", pattern="*.txt", full.names=T, recursive=FALSE)
 
 #подготавливаем файлы данных
-for (i in 1:2) {
+for (file_num in 1:length(files)) {
   #читаем данные с метеостанции
-  data_buff <- fread(files[i], header = F,
+  data_buff <- fread(files[file_num], header = F,
                     stringsAsFactors = F,
                     nrows = -1,
                     select = c(1:5, 48, 69),
@@ -205,15 +210,19 @@ for (i in 1:2) {
   final_data <- rbind(final_data, data_buff)
 }
 # %>%
-#     inner_join(stations, by = 'Синоптический_индекс_станции') %>%
+write_excel_csv(final_data, "final_data.csv")
+
+results <- inner_join(final_data, stations, by = 'Синоптический_индекс_станции') %>%
 #     #формируем финальную таблицу
 #     #dplyr::select(Синоптический_индекс_станции, Локация, Широта, Долгота, Подъем, Начало_периода, Сумма_осадков, Средняя_температура)
-#     dplyr::select(Синоптический_индекс_станции, Локация, Широта, Долгота, Подъем, Сумма_осадков, Средняя_температура)
+dplyr::select(Синоптический_индекс_станции, Локация, Широта, Долгота, Подъем, Дата_по_Гринвичу, Сумма_осадков, Средняя_температура)
 #   #добавляем таблицу в итоговый список
 #   target_data[[i]] <- data_set
 #   print(i)
 #   
 # }
+
+write_excel_csv(results, "results.csv")
 
 #создаем финальную таблицу
 final_data_set <- bind_rows(target_data)
@@ -227,7 +236,7 @@ final_data_set <- inner_join(final_data_set, counts[, c(2,3)], by ="Локация") %>
   arrange(Сумма_осадков)
 
 #строим график температура/осадки
-final_data_set %>%
+results %>%
   ggplot(aes(x = Средняя_температура, y = Сумма_осадков)) +
   geom_point() #+
   #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
