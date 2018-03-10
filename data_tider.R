@@ -18,9 +18,11 @@ library(raster)
 findCondition <- function(data_set){
   
   output_data <- data.frame()
+  i = 1
   
-  for(i in 1:nrow(data_set)){
+  while(i <= nrow(data_set)){
     if(data_set[i, "Макс._темперура_воздуха_между_сроками"] >= 0){
+      i=i+1
       next
     }
     
@@ -28,6 +30,7 @@ findCondition <- function(data_set){
     
     if(timediff > 4 | is.na(timediff)){
       if(data_set[i, "Сумма_осадков"] < 20){
+        i=i+1
         next
       }else{
         #save to out
@@ -37,15 +40,18 @@ findCondition <- function(data_set){
                               data_set[i,]$Макс._темперура_воздуха_между_сроками)
         names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Макс._темперура_воздуха_между_сроками")
         output_data <- rbind(output_data, new_row)
+        i=i+1
         next
       }
     }else{
       timediff <- difftime(data_set[i+2, "Дата_по_Гринвичу"], data_set[i, "Дата_по_Гринвичу"], units = "hours")
       if(timediff > 7 | is.na(timediff)){
         if((data_set[i, "Сумма_осадков"] + data_set[i+1, "Сумма_осадков"]) < 20){
+          i=i+1
           next
         }else{
           if(data_set[i+1, "Макс._темперура_воздуха_между_сроками"] >= 0){
+            i=i+1
             next
           }
           #save to out with date of last measurement
@@ -56,18 +62,21 @@ findCondition <- function(data_set){
           names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Макс._темперура_воздуха_между_сроками")
           output_data <- rbind(output_data, new_row)
           i = i + 1
-          next
+          #next
         } 
       }else{
         timediff <- difftime(data_set[i+3, "Дата_по_Гринвичу"], data_set[i, "Дата_по_Гринвичу"], units = "hours")
         if(timediff > 10 | is.na(timediff)){
           if((data_set[i, "Сумма_осадков"] + data_set[i+1, "Сумма_осадков"] + data_set[i+2, "Сумма_осадков"]) < 20){
+            i=i+1
             next
           }else{
             if(data_set[i+1, "Макс._темперура_воздуха_между_сроками"] >= 0){
+              i=i+1
               next
             }
             if(data_set[i+2, "Макс._темперура_воздуха_между_сроками"] >= 0){
+              i=i+1
               next
             }
             #save to out with date of last measurement
@@ -78,19 +87,23 @@ findCondition <- function(data_set){
             names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Макс._темперура_воздуха_между_сроками")
             output_data <- rbind(output_data, new_row)
             i = i + 2
-            next
+            #next
           } 
         }else{
           if((data_set[i, "Сумма_осадков"] + data_set[i+1, "Сумма_осадков"] + data_set[i+2, "Сумма_осадков"] + data_set[i+3, "Сумма_осадков"]) < 20){
+            i=i+1
             next
           }else{
             if(data_set[i+1, "Макс._темперура_воздуха_между_сроками"] >= 0){
+              i=i+1
               next
             }
             if(data_set[i+2, "Макс._темперура_воздуха_между_сроками"] >= 0){
+              i=i+1
               next
             }
             if(data_set[i+3, "Макс._темперура_воздуха_между_сроками"] >= 0){
+              i=i+1
               next
             }
             #save to out with date of last measurement
@@ -101,7 +114,7 @@ findCondition <- function(data_set){
             names(new_row) <- c("Синоптический_индекс_станции", "Дата_по_Гринвичу", "Сумма_осадков", "Макс._темперура_воздуха_между_сроками")
             output_data <- rbind(output_data, new_row)
             i = i + 3
-            next
+            #next
           } 
         }
       }
