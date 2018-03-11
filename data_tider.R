@@ -212,6 +212,28 @@ results_for_graphs %>%
 ggsave("Осадки-температура.png")
 
 results_for_graphs %>%
+  ggplot(aes(x = Дата_по_Гринвичу)) +
+  geom_point(aes(y = Сумма_осадков, colour = "Осадки")) +
+  geom_point(aes(y = Средняя_температура + 75, colour = "Температура")) +
+  scale_y_continuous(sec.axis = sec_axis(trans = ~.-75, name = "Средняя температура")) +
+  theme_light() +
+  labs(title = "Осадки-температура-время", x = "Год", y = "Сумма осадков", colour = "Параметр") +
+  theme(legend.position = "top")
+#facet_grid(Синоптический_индекс_станции ~ Начало_периода)
+ggsave("Осадки-температура-время.png")
+
+results_for_graphs %>%
+  ggplot(aes(x = Дата_по_Гринвичу)) +
+  stat_bin_2d(aes(y = Сумма_осадков, colour = "Осадки"), bins = 20) +
+  stat_bin_2d(aes(y = Средняя_температура+75, colour = "Температура"), bins = 20) +
+  scale_y_continuous(sec.axis = sec_axis(trans = ~.-75, name = "Средняя температура")) +
+  theme_light() +
+  labs(title = "Осадки-температура-время", x = "Год", y = "Сумма осадков", colour = "Параметр") +
+  theme(legend.position = "top")
+#facet_grid(Синоптический_индекс_станции ~ Начало_периода)
+ggsave("Осадки-температура-время плотность.png")
+
+results_for_graphs %>%
   ggplot(aes(x = Средняя_температура, y = Сумма_осадков)) +
   stat_density2d(aes(fill = ..level..), geom = "polygon", n = 100, contour = T) +
   theme_light() +
@@ -283,8 +305,8 @@ results_by_year %>%
   ggplot(aes(Дата_по_Гринвичу)) +
   stat_bin(aes(fill = -..density..), binwidth = 5, center = 2.5) +
   theme_light() +
-  labs(title = "Снегопады-годы", x = "Год", y = "Число событий") +
-  coord_cartesian(xlim = c(1974, 2016))
+  labs(title = "Снегопады-годы", x = "Год", y = "Число событий") #+
+  #coord_cartesian(xlim = c(1974, 2016))
   # xlim(1974, 2016) +
   # scale_x_continuous(limits = c(1974, 2016))
 
