@@ -206,20 +206,66 @@ results_for_graphs <- filter(results, Сумма_осадков < 75, Средняя_температура > 
 results_for_graphs %>%
   ggplot(aes(x = Средняя_температура, y = Сумма_осадков)) +
   geom_point() +
+  theme_light() +
+  labs(title = "Осадки-температура", x = "Средняя температура", y = "Сумма осадков")
   #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("Осадки-температура.png")
 
 results_for_graphs %>%
+  ggplot(aes(x = Средняя_температура, y = Сумма_осадков)) +
+  stat_density2d(aes(fill = ..level..), geom = "polygon", n = 100, contour = T) +
+  theme_light() +
+  labs(title = "Осадки-температура", x = "Средняя температура", y = "Сумма осадков")
+  #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
+ggsave("Осадки-температура уровни цвет.png")
+
+results_for_graphs %>%
+  ggplot(aes(x = Средняя_температура, y = Сумма_осадков)) +
+  stat_bin2d(aes(fill = ..density..), bins = 15) +
+  theme_light() +
+  labs(title = "Осадки-температура", x = "Средняя температура", y = "Сумма осадков")
+#facet_grid(Синоптический_индекс_станции ~ Начало_периода)
+ggsave("Осадки-температура уровни.png")
+
+results_for_graphs %>%
+  ggplot(aes(x = Средняя_температура, y = Сумма_осадков, z = Дата_по_Гринвичу)) +
+  stat_summary_hex() +
+  theme_light() +
+  labs(title = "Осадки-температура", x = "Средняя температура", y = "Сумма осадков")
+#facet_grid(Синоптический_индекс_станции ~ Начало_периода)
+ggsave("Осадки-температура гексы.png")
+
+results_for_graphs %>%
   ggplot(aes(x = Дата_по_Гринвичу, y = Сумма_осадков)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") +
+  theme_light() +
+  scale_x_datetime() + 
+  scale_y_continuous(trans = "log") +
+  labs(title = "Осадки-время", x = "Год", y = "Сумма осадков")
 #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("Осадки-время.png")
 
+library(scales)
+
+reverselog_trans <- function(base = exp(1)) {
+  trans <- function(x) -log(x, base)
+  inv <- function(x) base^(-x)
+  trans_new(paste0("reverselog-", format(base)), trans, inv, 
+            log_breaks(base = base), 
+            domain = c(1e-100, Inf))
+}
+
 results_for_graphs %>%
-  ggplot(aes(x = Дата_по_Гринвичу, y = Средняя_температура)) +
+  ggplot(aes(x = Дата_по_Гринвичу, y = -Средняя_температура)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") +
+  theme_light() +
+  scale_y_continuous(trans=reverselog_trans(base=2), 
+                     labels=trans_format("identity", function(x) -x)) +
+  # scale_y_continuous(trans = "log2") +
+  # scale_y_continuous(trans = "reverse") +
+  labs(title = "Температура-время", x = "Год", y = "Средняя температура за событие")
 #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("Температура-время.png")
 
@@ -228,13 +274,23 @@ results_by_year <- mutate(results_for_graphs, Дата_по_Гринвичу = year(Дата_по_Гр
 results_by_year %>%
   ggplot(aes(x = Дата_по_Гринвичу, y = Сумма_осадков)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") +
+  theme_light()
 #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("Осадки-годы.png")
 
 results_by_year %>%
   ggplot(aes(Дата_по_Гринвичу)) +
-  geom_bar() #+
+  stat_bin(aes(fill = -..density..), binwidth = 5, center = 2.5) +
+  theme_light() +
+  labs(title = "Снегопады-годы", x = "Год", y = "Число событий") +
+  coord_cartesian(xlim = c(1974, 2016))
+  # xlim(1974, 2016) +
+  # scale_x_continuous(limits = c(1974, 2016))
+
+  #scale_fill_brewer(palette = "Blues") 
+  #geom_histogram(binwidth = 5)
+  #geom_bar() #+
   #geom_smooth(method = "lm")
 #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("События-годы.png")
