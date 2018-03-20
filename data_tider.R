@@ -189,16 +189,16 @@ results <- inner_join(final_data, stations, by = 'Синоптический_индекс_станции')
 
 write_excel_csv(results, "results.csv")
 
-#создаем финальную таблицу
-final_data_set <- bind_rows(target_data)
-#подсчитываем количество упоминаний станции в таблице
-counts <- count(final_data_set, Локация)
-#добавляем число упоминаний отдельным столбцом и сортируем по возрастанию осадков
-final_data_set <- inner_join(final_data_set, counts[, c(2,3)], by ="Локация") %>%
-  #ungroup() %>%
-  #mutate(colorscalerate = (Сумма_осадков-min(Сумма_осадков))/(max(Сумма_осадков)-min(Сумма_осадков))) %>%
-  #group_by(Синоптический_индекс_станции, Начало_периода) %>%
-  arrange(Сумма_осадков)
+# #создаем финальную таблицу
+# final_data_set <- bind_rows(target_data)
+# #подсчитываем количество упоминаний станции в таблице
+# counts <- count(final_data_set, Локация)
+# #добавляем число упоминаний отдельным столбцом и сортируем по возрастанию осадков
+# final_data_set <- inner_join(final_data_set, counts[, c(2,3)], by ="Локация") %>%
+#   #ungroup() %>%
+#   #mutate(colorscalerate = (Сумма_осадков-min(Сумма_осадков))/(max(Сумма_осадков)-min(Сумма_осадков))) %>%
+#   #group_by(Синоптический_индекс_станции, Начало_периода) %>%
+#   arrange(Сумма_осадков)
 
 results_for_graphs <- filter(results, Сумма_осадков < 75, Средняя_температура > -35)
 
@@ -268,6 +268,21 @@ results_for_graphs %>%
 #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("Осадки-время.png")
 
+results_for_graphs %>%
+  mutate(Дата_по_Гринвичу = floor_date(Дата_по_Гринвичу, years(5))) %>%
+  # mutate(Дата_по_гринвичу = round(as.numeric(Дата_по_Гринвичу)/5)*5) %>%
+  # mutate(Дата_по_Гринвичу = factor(Дата_по_Гринвичу)) %>%
+  ggplot(aes(x = Дата_по_Гринвичу, y = Сумма_осадков)) +
+  geom_boxplot(aes(group = Дата_по_Гринвичу)) +
+  geom_smooth(method = "lm") +
+  #geom_line(aes(group = Сумма_осадков), colour = "blue") +
+  theme_light() +
+  # scale_x_datetime() + 
+  scale_y_continuous(trans = "log10") +
+  labs(title = "Осадки-время", x = "Год", y = "Сумма осадков")
+#facet_grid(Синоптический_индекс_станции ~ Начало_периода)
+ggsave("Осадки-время box.png")
+
 library(scales)
 
 reverselog_trans <- function(base = exp(1)) {
@@ -290,6 +305,20 @@ results_for_graphs %>%
   labs(title = "Температура-время", x = "Год", y = "Средняя температура за событие")
 #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("Температура-время.png")
+
+results_for_graphs %>%
+  mutate(Дата_по_Гринвичу = floor_date(Дата_по_Гринвичу, years(5))) %>%
+  ggplot(aes(x = Дата_по_Гринвичу, y = -Средняя_температура)) +
+  geom_boxplot(aes(group = Дата_по_Гринвичу)) +
+  geom_smooth(method = "lm") +
+  theme_light() +
+  scale_y_continuous(trans=reverselog_trans(base=2), 
+                     labels=trans_format("identity", function(x) -x)) +
+  # scale_y_continuous(trans = "log2") +
+  # scale_y_continuous(trans = "reverse") +
+  labs(title = "Температура-время", x = "Год", y = "Средняя температура за событие")
+#facet_grid(Синоптический_индекс_станции ~ Начало_периода)
+ggsave("Температура-время box.png")
 
 results_by_year <- mutate(results_for_graphs, Дата_по_Гринвичу = year(Дата_по_Гринвичу))
 
@@ -317,20 +346,45 @@ results_by_year %>%
 #facet_grid(Синоптический_индекс_станции ~ Начало_периода)
 ggsave("События-годы.png")
 
+
+
+results_by_month <- results_for_graphs %>%
+  mutate(Дата_по_Гринвичу = month(Дата_по_Гринвичу))
+
+results_by_month %>%
+  ggplot(aes(Дата_по_Гринвичу)) +
+  stat_bin(aes(fill = -..density..), binwidth = 1, center = 2.5) +
+  theme_light() +
+  scale_x_discrete(labels = month.abb) +
+  labs(title = "Снегопады-месяцы", x = "Месяц", y = "Число событий")
+#coord_cartesian(xlim = c(1974, 2016))
+# xlim(1974, 2016) +
+# scale_x_continuous(limits = c(1974, 2016))
+
+#scale_fill_brewer(palette = "Blues") 
+#geom_histogram(binwidth = 5)
+#geom_bar() #+
+#geom_smooth(method = "lm")
+#facet_grid(Синоптический_индекс_станции ~ Начало_периода)
+ggsave("События-сезоны.png")
+
+
+
 #загружаем карту России
 russia <- getData("GADM", country= "RUS", level=1)
 russia <- fortify(russia)
 #делаем смещение для корректного отображения карты
 russia = within(russia, {long = ifelse(long < 0, long + 360, long)})
-final_data_set = within(final_data_set, {Долгота = ifelse(Долгота < 0, Долгота + 360, Долгота)})
+results_by_year_map = within(results_by_year, {Долгота = ifelse(Долгота < 0, Долгота + 360, Долгота)})
 
 #строим карту с расположением метеостанций
 locations_plot <- ggplot() +
   geom_map(data= russia, map= russia, aes(x=long,y=lat, map_id=id,group=group), fill="white", colour="black") +
-  geom_point(data = final_data_set, aes(x = Долгота, y = Широта, color = Локация), size = 2) +
+  geom_point(data = results_by_year_map, aes(x = Долгота, y = Широта, color = Локация), size = 2) +
   scale_size(range=c(2,7)) +
   labs(title= "Расположение метеостанций", x="Longitude", y= "Latitude") +
-  coord_map()
+  theme(legend.position="none") +
+  coord_map(projection = "azequidistant")
 #сохраняем карту
 ggsave("Расположение метеостанций.png")
 #отображаем карту (можно закомментировать)
@@ -339,23 +393,31 @@ locations_plot
 #строим карту с отображением частоты осадков
 precipitation_freq_plot <- ggplot() +
   geom_map(data= russia, map= russia, aes(x=long,y=lat, map_id=id,group=group), fill="white", colour="black") +
-  geom_point(data = final_data_set, aes(x = Долгота, y = Широта, color = Локация, size = n)) +
+  geom_count(data = results_by_year_map, aes(x = Долгота, y = Широта, color = ..n..)) +
+  scale_colour_gradient(low = "#56B1F7", high = "#132B43") +
   scale_size(range=c(2,7)) +
-  labs(title= "Частота осадков", x="Longitude", y= "Latitude") +
-  coord_map()
+  theme_light() +
+  labs(title= "Частота снегопадов", x="Долгота", y= "Широта", color = "Число событий", size = "Число событий") +
+  coord_map(projection = "azequidistant")
 #сохраняем карту
 ggsave("Осадки (частота).png")
 #отображаем карту (можно закомментировать)
 precipitation_freq_plot
 
+
+
 #строим карту с отображением уровня осадков
 precipitation_vol_plot <- ggplot() +
-  geom_map(data = russia, map = russia, aes(x = long, y = lat, map_id=id,group=group), fill="white", colour="black") +
-  geom_point(data = final_data_set, aes(x = Долгота, y = Широта, color = Сумма_осадков), size = 3) +
-  scale_colour_gradient(low = "#add8e6", high = "#0000FF") +
+  geom_map(data = russia, map = russia, aes(map_id=id,group=group), fill="white", colour="black") +
+  geom_point(data = arrange(results_by_year_map, Сумма_осадков), aes(x = Долгота, y = Широта, color = Сумма_осадков), size = 3) +
+  #scale_color_hue(direction = -1) +
+  scale_colour_gradient(low = "#56B1F7", high = "#132B43") +
+  #scale_colour_gradient(low = "#deebf7", high = "#3182bd") +
+  #scale_color_brewer(palette = "Blues") +
   scale_size(range=c(2,7)) +
-  labs(title= "Объём осадков", x="Longitude", y= "Latitude") +
-  coord_map()
+  theme_light() +
+  labs(title= "Максимум осадков за 12 часов", x="Долгота", y= "Широта", color = "Осадки (мм)") +
+  coord_map(projection = "azequidistant")
 #сохраняем карту
 ggsave("Осадки (объем).png")
 #отображаем карту (можно закомментировать)
